@@ -1,6 +1,7 @@
 import { LineChart } from "@carbon/charts";
 
 const chartElement = document.querySelector("#chart");
+const pageTitle = document.querySelector("#title");
 
 const today = new Date();
 const start = new Date();
@@ -42,8 +43,16 @@ const chart = new LineChart(chartElement, {
 
 fetch('https://covid-data.calsmith.workers.dev')
     .then(res => res.json())
-    .then(json => applyData(json.data))
+    .then(json => {
+        applyData(json.data);
+        updateTitle(json.last_updated);
+    })
     .catch(error => console.error(error));
+
+const updateTitle = (updatedAt) => {
+    const updatedDate = new Date(`${updatedAt}-05:00`);
+    pageTitle.textContent = `Last updated ${updatedDate.toDateString()} at ${updatedDate.toLocaleTimeString()}`;
+}
 
 const applyData = (rawData) => {
     let data = [];
