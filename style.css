@@ -17,6 +17,8 @@ html, body {
 
 body {
     padding: 20px;
+    display: flex;
+    flex-direction: column;
 }
 
 #chart {
