@@ -20,7 +20,10 @@ addEventListener('fetch', (event) => {
   
   const handleRequest = async (request) => {
     const jsonText = await COVID_DATA.get('canada_report');
-    return new Response(jsonText, {
+    const jsonBlob = new Blob([jsonText], {
+        type: 'application/json'
+    });
+    return new Response(jsonBlob, {
       headers: {
         'Access-Control-Allow-Origin': 'https://covid-r9aa.pages.dev/'
       }
