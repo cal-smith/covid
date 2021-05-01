@@ -3,12 +3,23 @@
 /* Basic page style resets */
 * {
     box-sizing: border-box;
-  }
+}
   
-  [hidden] {
+[hidden] {
     display: none !important;
-  }
+}
   
-  html, body {
+html, body {
     height: 100%;
-  }
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    padding: 20px;
+}
+
+#chart {
+    max-height: 100%;
+    max-width: 100%;
+}
