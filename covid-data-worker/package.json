@@ -1,0 +1,17 @@
+{
+    "name": "covid-data-worker",
+    "version": "1.0.0",
+    "description": "worker for the project",
+    "main": "index.js",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/cal-smith/covid.git"
+    },
+    "author": "calsmith",
+    "license": "MIT",
+    "bugs": {
+      "url": "https://github.com/cal-smith/covid/issues"
+    },
+    "homepage": "https://github.com/cal-smith/covid#readme"
+  }
+  
