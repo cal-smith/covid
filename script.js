@@ -41,7 +41,12 @@ const chart = new LineChart(chartElement, {
   options: lineOptions
 });
 
-fetch('https://covid-data.calsmith.workers.dev')
+let workerURL = import.meta.env.PROD_WORKER;
+if (import.meta.env.MODE === 'development') {
+    workerURL = import.meta.env.DEV_WORKER;
+}
+
+fetch(workerURL)
     .then(res => res.json())
     .then(json => {
         applyData(json.data);

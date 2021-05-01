@@ -3,20 +3,8 @@
 
 /** @type {import("snowpack").SnowpackUserConfig } */
 module.exports = {
-  mount: {
-    /* ... */
-    
-  },
-  plugins: [
-    /* ... */
-  ],
-  packageOptions: {
-    /* ... */
-  },
-  devOptions: {
-    /* ... */
-  },
-  buildOptions: {
-    /* ... */
-  },
+  env: {
+    DEV_WORKER: 'http://127.0.0.1:8787',
+    PROD_WORKER: 'https://covid-data.calsmith.workers.dev/'
+  }
 };
