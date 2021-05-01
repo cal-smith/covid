@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/cal-smith/covid#readme",
   "devDependencies": {
+    "@snowpack/plugin-run-script": "^2.3.0",
     "snowpack": "^3.3.7"
   },
   "dependencies": {
