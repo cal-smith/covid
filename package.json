@@ -1,0 +1,28 @@
+{
+  "name": "covid",
+  "version": "1.0.0",
+  "description": "Simple COVID-19 case data viz, sourced from api.covid19tracker.ca",
+  "main": "script.js",
+  "scripts": {
+    "start": "snowpack dev",
+    "build": "snowpack build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cal-smith/covid.git"
+  },
+  "author": "calsmith",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cal-smith/covid/issues"
+  },
+  "homepage": "https://github.com/cal-smith/covid#readme",
+  "devDependencies": {
+    "snowpack": "^3.3.7"
+  },
+  "dependencies": {
+    "carbon-components": "^10.34.0",
+    "@carbon/charts": "^0.41.62",
+    "d3": "^5.14.2"
+  }
+}

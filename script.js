@@ -1,6 +1,6 @@
-const chartElement = document.querySelector("#chart");
+import { LineChart } from "@carbon/charts";
 
-const { LineChart } = window.Charts;
+const chartElement = document.querySelector("#chart");
 
 const today = new Date();
 const start = new Date();
@@ -37,7 +37,7 @@ const lineOptions = {
 
 const chart = new LineChart(chartElement, {
   data: [],
-  options: lineOptions,
+  options: lineOptions
 });
 
 fetch('https://covid-data.calsmith.workers.dev')
