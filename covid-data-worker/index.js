@@ -25,7 +25,7 @@ addEventListener('fetch', (event) => {
     });
     return new Response(jsonBlob, {
       headers: {
-        'Access-Control-Allow-Origin': 'https://covid-r9aa.pages.dev/'
+        'Access-Control-Allow-Origin': 'https://covid-r9aa.pages.dev'
       }
     });
   };
