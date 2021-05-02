@@ -22,8 +22,9 @@
     "snowpack": "^3.3.7"
   },
   "dependencies": {
-    "carbon-components": "^10.34.0",
     "@carbon/charts": "^0.41.62",
-    "d3": "^5.14.2"
+    "carbon-components": "^10.34.0",
+    "d3": "^5.14.2",
+    "date-fns": "^2.21.1"
   }
 }

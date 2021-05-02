@@ -3,7 +3,7 @@ type = 'javascript'
 account_id = 'ecb9934ca9307f6d0fba222e305efeed'
 workers_dev = true
 usage_model = 'bundled'
-
+vars = { ENVIRONMENT = 'production'}
 kv_namespaces = [
     { binding = 'COVID_DATA', id = '4bcc7e1603ed4e92b84f48115adeb644', preview_id = '9cb1f61b52f24936a8de3fcb97d44bbf' }
 ]
@@ -14,5 +14,5 @@ crons = ['*/30 * * * *']
 [env.dev]
 vars = { ENVIRONMENT = 'development'}
 kv_namespaces = [
-    { binding = 'COVID_DATA', id = '4bcc7e1603ed4e92b84f48115adeb644', preview_id = '9cb1f61b52f24936a8de3fcb97d44bbf' }
+    { binding = 'COVID_DATA', id = '9cb1f61b52f24936a8de3fcb97d44bbf', preview_id = '9cb1f61b52f24936a8de3fcb97d44bbf' }
 ]

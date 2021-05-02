@@ -3,6 +3,9 @@
 
 /** @type {import("snowpack").SnowpackUserConfig } */
 module.exports = {
+  devOptions: {
+    port: 8081
+  },
   env: {
     DEV_WORKER: 'http://127.0.0.1:8787',
     PROD_WORKER: 'https://covid-data.calsmith.workers.dev/'
@@ -19,6 +22,7 @@ module.exports = {
   ],
   exclude: [
     '**/node_modules/**/*',
-    '**/covid-data-worker/**/*'
+    '**/covid-data-worker/**/*',
+    '**.git/**/*'
   ]
 };
