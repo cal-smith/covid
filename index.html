@@ -1,21 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Carbon Charts COVID-19</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <link rel="stylesheet" href="/style.css" />
+  <title>Carbon Charts COVID-19</title>
 
-    <script src="/script.js" type="module"></script>
+  <link rel="stylesheet" href="/style.css" />
 
-    <!-- Cloudflare Web Analytics -->
-    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "3317e995bb1d4388be72e961e35e87dd"}'></script>
-    <!-- End Cloudflare Web Analytics -->
-  </head>
-  <body>
-    <h1 id="title">Last updated: loading...</h1>
-    <div id="chart"></div>
-  </body>
+  <script src="/script.js" type="module"></script>
+
+  <!-- Cloudflare Web Analytics -->
+  <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+    data-cf-beacon='{"token": "3317e995bb1d4388be72e961e35e87dd"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <h1 id="title">Last updated: loading...</h1>
+  <div class="summary">
+    <div class="bx--tile bx--tile--light">
+      <h1>0</h1>
+      <h3>Cases</h3>
+      <span>0 today</span>
+    </div>
+    <div class="bx--tile bx--tile--light">
+      <h1>0</h1>
+      <h3>Recoveries</h3>
+      <span>0 today</span>
+    </div>
+    <div class="bx--tile bx--tile--light">
+      <h1>0</h1>
+      <h3>Hospitalizations</h3>
+      <span>0 today</span>
+    </div>
+    <div class="bx--tile bx--tile--light">
+      <h1>0</h1>
+      <h3>Vaccinations</h3>
+      <span>0 today</span>
+    </div>
+  </div>
+  <div id="chart"></div>
+  <div id="provinces"></div>
+</body>
+
 </html>

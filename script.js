@@ -3,6 +3,101 @@ import { subDays, format, parse } from 'date-fns'
 
 const chartElement = document.querySelector('#chart');
 const pageTitle = document.querySelector('#title');
+const provincesElement = document.querySelector('#provinces');
+
+const PROVINCES = [
+    {
+        code: 'on',
+        name: 'Ontario',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'qc',
+        name: 'Quebec',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'ns',
+        name: 'Nova Scotia',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'nb',
+        name: 'New Brunswick',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'mb',
+        name: 'Manitoba',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'bc',
+        name: 'British Columbia',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'pe',
+        name: 'Prince Edward Island',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'sk',
+        name: 'Saskatchewan',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'ab',
+        name: 'Alberta',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'nl',
+        name: 'Newfoundland and Labrador',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'nt',
+        name: 'Northwest Territories',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'yt',
+        name: 'Yukon',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+    {
+        code: 'nu',
+        name: 'Nunavut',
+        chartElement: null,
+        rawData: null,
+        chart: null
+    },
+];
 
 const today = new Date();
 const start = subDays(today, 30);
@@ -19,6 +114,16 @@ const lineOptions = {
             mapsTo: 'value',
             title: 'Change',
             scaleType: 'linear',
+            // groups: [
+            //     {
+            //         title: 'Cases',
+            //         mapsTo: 'change_cases'
+            //     },
+            //     {
+            //         title: 'Recoveries',
+            //         mapsTo: 'change_recoveries'
+            //     }
+            // ]
         },
     },
     zoomBar: {
@@ -45,10 +150,31 @@ if (import.meta.env.MODE === 'development') {
 fetch(workerURL)
     .then(res => res.json())
     .then(json => {
-        applyData(json.data);
+        const data = formatData(json.data);
+        chart.model.setData(data);
         updateTitle(json.last_updated);
     })
     .catch(error => console.error(error));
+
+for (const province of PROVINCES) {
+    province.chartElement = document.createElement('div');
+    province.chartElement.classList.add('province-chart');
+    provincesElement.appendChild(province.chartElement);
+    const options = Object.assign({}, lineOptions, {
+        title: `${province.name} change in cases over time`
+    });
+    fetch(`${workerURL}?province=${province.code}`)
+        .then(res => res.json())
+        .then(json => {
+            province.rawData = json;
+            const data = formatData(json.data);
+            province.chart = new LineChart(province.chartElement, {
+                data,
+                options
+            });
+        })
+        .catch(error => console.error(error));
+}
 
 const updateTitle = (updatedAt) => {
     const updatedDate = parse(`${updatedAt} -05`, 'yyyy-MM-dd HH:mm:ss x', new Date())
@@ -57,7 +183,7 @@ const updateTitle = (updatedAt) => {
     pageTitle.textContent = `Last updated ${formattedDate} at ${formattedTime}`;
 }
 
-const applyData = (rawData) => {
+const formatData = (rawData) => {
     let data = [];
     let rollingCaseData = [0, 0, 0, 0, 0, 0, 0];
     let rollingRecoveryData = [0, 0, 0, 0, 0, 0, 0];
@@ -100,5 +226,53 @@ const applyData = (rawData) => {
         });
     }
 
-    chart.model.setData(data);
+    return data;
 };
+
+fetch(`${workerURL}/summary`)
+    .then(res => res.json())
+    .then(json => {
+        console.log(json);
+        const summaryElements = Array.from(document.querySelectorAll('.summary .bx--tile'));
+        const summaryData = json.data[0];
+        const summaries = [
+            {
+                title: 'Cases',
+                totalKey: 'total_cases',
+                changeKey: 'change_cases'
+            },
+            {
+                title: 'Recoveries',
+                totalKey: 'total_recoveries',
+                changeKey: 'change_recoveries'
+            },
+            {
+                title: 'Hospitalizations',
+                totalKey: 'total_hospitalizations',
+                changeKey: 'change_hospitalizations'
+            },
+            {
+                title: 'Vaccinations',
+                totalKey: 'total_vaccinations',
+                changeKey: 'change_vaccinations'
+            }
+        ];
+
+        const formatNumber = (numberString) => {
+            return `${parseInt(numberString, 10).toLocaleString()}`;
+        }
+
+        for (const summary of summaries) {
+            const element = summaryElements.shift();
+            const total = formatNumber(summaryData[summary.totalKey]);
+            let change = formatNumber(summaryData[summary.changeKey]);
+            if (!change.startsWith('-')) {
+                change = `+${change}`;
+            }
+            element.innerHTML = `
+                <h1>${total}</h1>
+                <h3>${summary.title}</h3>
+                <span>${change} today</span>
+            `;
+        }
+    });

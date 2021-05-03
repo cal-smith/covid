@@ -20,9 +20,37 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
+    background-color: #f4f4f4;
+}
+
+#title {
+    margin-bottom: 2rem;
+}
+
+.summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    column-gap: 10px;
+    row-gap: 10px;
+    margin-bottom: 2rem;
 }
 
 #chart {
-    max-height: 100%;
+    min-height: 80%;
     max-width: 100%;
+    margin-bottom: 2rem;
+    padding: 20px;
+}
+
+#provinces {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    justify-items: center;
+    column-gap: 20px;
+    row-gap: 20px;
+}
+
+.province-chart {
+    height: 650px;
+    padding: 20px;
 }
