@@ -1,5 +1,7 @@
 import { LineChart } from '@carbon/charts';
-import { subDays, format, parse } from 'date-fns'
+import { LegendItemType } from '@carbon/charts/interfaces';
+import { Chart, Legend, ZoomBar } from '@carbon/charts/interfaces/events';
+import { subDays, format, parse, isAfter, isBefore } from 'date-fns'
 
 const chartElement = document.querySelector('#chart');
 const pageTitle = document.querySelector('#title');
@@ -114,6 +116,7 @@ const lineOptions = {
             mapsTo: 'value',
             title: 'Change',
             scaleType: 'linear',
+            domain: [0, 20000]
             // groups: [
             //     {
             //         title: 'Cases',
@@ -142,6 +145,56 @@ const chart = new LineChart(chartElement, {
     options: lineOptions
 });
 
+const getMaxValue = (data) => {
+    return data.reduce((previous, current) => {
+        if (current.value > previous) { return current.value; }
+        return previous;
+    }, 0);
+};
+
+const getVisibleData = (data, domain) => {
+    const [start, end] = domain;
+    return data.filter(data => {
+        return isAfter(data.date, start) && isBefore(data.date, end);
+    });
+};
+
+const updateRangeFromZoom = (chart, newDomain) => {
+    const data = chart.model.getData();
+    const filtered = getVisibleData(data, newDomain)
+    const max = getMaxValue(filtered);
+    chart.model.setOptions({
+        axes: {
+            left: {
+                domain: [0, max]
+            }
+        }
+    });
+};
+
+const updateRangeFromLegend = (chart, legendItems) => {
+    const domain = chart.services.zoom.model.state.zoomDomain;
+    const names = legendItems.filter(item => item.status === 1).map(item => item.name);
+    const data = chart.model.getData();
+    const filtered = getVisibleData(data, domain).filter(data => names.includes(data.group));
+    const max = getMaxValue(filtered);
+    chart.model.setOptions({
+        axes: {
+            left: {
+                domain: [0, max]
+            }
+        }
+    });
+};
+
+chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
+    updateRangeFromZoom(chart, event.detail.newDomain);
+});
+
+chart.services.events.addEventListener(Legend.ITEMS_UPDATE, event => {
+    updateRangeFromLegend(chart, event.detail.dataGroups)
+});
+
 let workerURL = import.meta.env.PROD_WORKER;
 if (import.meta.env.MODE === 'development') {
     workerURL = import.meta.env.DEV_WORKER;
@@ -153,6 +206,7 @@ fetch(workerURL)
         const data = formatData(json.data);
         chart.model.setData(data);
         updateTitle(json.last_updated);
+        updateRangeFromZoom(chart, [start, today]);
     })
     .catch(error => console.error(error));
 
@@ -168,10 +222,15 @@ for (const province of PROVINCES) {
         .then(json => {
             province.rawData = json;
             const data = formatData(json.data);
-            province.chart = new LineChart(province.chartElement, {
+            const chart = new LineChart(province.chartElement, {
                 data,
                 options
             });
+            chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
+                updateRangeFromZoom(chart, event.detail.newDomain);
+            });
+            updateRangeFromZoom(chart, [start, today]);
+            province.chart = chart;
         })
         .catch(error => console.error(error));
 }
