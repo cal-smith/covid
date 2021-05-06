@@ -35,11 +35,54 @@ body {
     margin-bottom: 2rem;
 }
 
-#chart {
+.canada {
     min-height: 80%;
     max-width: 100%;
     margin-bottom: 2rem;
     padding: 20px;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.canada .toolbar {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 20px;
+}
+
+.canada .toolbar__title {
+    flex-grow: 1;
+}
+
+.canada #table {
+    display: none;
+    height: 100%;
+    overflow: auto;
+}
+
+.canada #table .day {
+    min-width: 240px;
+}
+
+.canada #table .vaccinations {
+    min-width: 170px;
+}
+
+.canada #table table {
+    min-height: 100%;
+}
+
+.canada #chart {
+    display: block;
+}
+
+.canada.show-table #table {
+    display: block;
+}
+
+.canada.show-table #chart {
+    display: none;
 }
 
 #provinces {

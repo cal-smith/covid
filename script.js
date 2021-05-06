@@ -1,12 +1,25 @@
 import { LineChart } from '@carbon/charts';
-import { LegendItemType } from '@carbon/charts/interfaces';
-import { Chart, Legend, ZoomBar } from '@carbon/charts/interfaces/events';
-import { subDays, format, parse, isAfter, isBefore } from 'date-fns'
+import { Legend, ZoomBar } from '@carbon/charts/interfaces/events';
+import { subDays, format, parse, isAfter, isBefore, formatDistance } from 'date-fns'
 
+// global elements
 const chartElement = document.querySelector('#chart');
+const tableElement = document.querySelector('#table');
 const pageTitle = document.querySelector('#title');
 const provincesElement = document.querySelector('#provinces');
+const canadaContainer = document.querySelector('.canada');
+const candaChartToggle = document.querySelector('.canada .chart-toggle');
 
+candaChartToggle.addEventListener('click', () => {
+    canadaContainer.classList.toggle('show-table');
+    if (canadaContainer.classList.contains('show-table')) {
+        candaChartToggle.textContent = 'Chart';
+    } else {
+        candaChartToggle.textContent = 'Table';
+    }
+});
+
+// provinces, raw data, and the associated chart instance
 const PROVINCES = [
     {
         code: 'on',
@@ -105,7 +118,6 @@ const today = new Date();
 const start = subDays(today, 30);
 
 const lineOptions = {
-    title: 'Change in cases over time',
     axes: {
         bottom: {
             title: 'Days',
@@ -117,16 +129,6 @@ const lineOptions = {
             title: 'Change',
             scaleType: 'linear',
             domain: [0, 20000]
-            // groups: [
-            //     {
-            //         title: 'Cases',
-            //         mapsTo: 'change_cases'
-            //     },
-            //     {
-            //         title: 'Recoveries',
-            //         mapsTo: 'change_recoveries'
-            //     }
-            // ]
         },
     },
     zoomBar: {
@@ -200,6 +202,7 @@ if (import.meta.env.MODE === 'development') {
     workerURL = import.meta.env.DEV_WORKER;
 }
 
+// get canada aggregate data
 fetch(workerURL)
     .then(res => res.json())
     .then(json => {
@@ -207,6 +210,8 @@ fetch(workerURL)
         chart.model.setData(data);
         updateTitle(json.last_updated);
         updateRangeFromZoom(chart, [start, today]);
+        const table = generateTable(json.data);
+        tableElement.appendChild(table);
     })
     .catch(error => console.error(error));
 
@@ -238,9 +243,124 @@ for (const province of PROVINCES) {
 const updateTitle = (updatedAt) => {
     const updatedDate = parse(`${updatedAt} -05`, 'yyyy-MM-dd HH:mm:ss x', new Date())
     const formattedDate = format(updatedDate, 'EEE MMM do');
-    const formattedTime = format(updatedDate, 'h:maaa (O)');
+    const formattedTime = format(updatedDate, 'h:mmaaa (O)');
     pageTitle.textContent = `Last updated ${formattedDate} at ${formattedTime}`;
 }
+
+const formatNumber = (numberString) => {
+    return parseInt(numberString, 10).toLocaleString();
+}
+
+const createElement = (tagName, initOptions) => {
+    const tag = document.createElement(tagName);
+    const options = Object.assign({
+        classList: [],
+        attrs: {},
+        textContent: '',
+        children: []
+    }, initOptions);
+    for (const classNameOrObject of options.classList) {
+        if (typeof classNameOrObject === 'object') {
+            for (const [className, enabled] of Object.entries(classNameOrObject)) {
+                if (enabled) {
+                    tag.classList.add(className);
+                }
+            }
+        } else {
+            tag.classList.add(classNameOrObject);
+        }
+    }
+
+    for (const [attr, value] of Object.entries(options.attrs)) {
+        tag.setAttribute(attr, value);
+    }
+
+    tag.textContent = options.textContent;
+
+    for (const child of options.children) {
+        tag.appendChild(child);
+    }
+
+    return tag;
+};
+
+const generateTable = (rawData) => {
+    console.log(rawData);
+    const headerCells = [
+        'Day',
+        'Cases',
+        'Recoveries',
+        'Hospitalizations',
+        'Criticals',
+        'Deaths',
+        'Vaccinations'
+    ].map(header => {
+        const tableHeader = createElement('th', {
+            classList: [header.toLowerCase()],
+            attrs: {
+                scope: 'col',
+                title: header
+            },
+            children: [
+                createElement('div', {
+                    classList: ['bx--table-header-label'],
+                    textContent: header
+                })
+            ]
+        });
+        return tableHeader;
+    });
+
+    const thead = createElement('thead', {
+        children: [
+            createElement('tr', {
+                children: headerCells
+            })
+        ]
+    });
+
+    const dayRows = Array.from(rawData).reverse().map(day => {
+        const date = parse(day.date, 'yyyy-MM-dd', new Date());
+        const daysAgo = formatDistance(date, new Date(), { addSuffix: true });
+        const monthDay = format(date, 'MMM do');
+        const dayCell = createElement('td', {
+            classList: ['day'],
+            textContent: `${daysAgo} (${monthDay})`
+        });
+
+        const population = 37_590_000;
+        const percentVaccinated = (day.total_vaccinations / population * 100).toFixed(2);
+        const vaxCell = createElement('td', {
+            classList: ['vaccinations'],
+            textContent: `${formatNumber(day.change_vaccinations)} (${percentVaccinated}%)`
+        });
+
+        const otherCells = [
+            'change_cases',
+            'change_recoveries',
+            'change_hospitalizations',
+            'change_criticals',
+            'change_fatalities'
+        ].map(attr => createElement('td', {
+            textContent: formatNumber(day[attr])
+        }));
+        return createElement('tr', {
+            children: [dayCell, ...otherCells, vaxCell]
+        });
+    });
+
+    const tbody = createElement('tbody', {
+        attrs: { 'aria-live': 'polite' },
+        children: dayRows
+    });
+
+    const docWidth = document.body.getBoundingClientRect().width;
+    const table = createElement('table', {
+        classList: ['bx--data-table', { 'bx--data-table--sticky-header': docWidth > 1000 }],
+        children: [thead, tbody]
+    });
+    return table;
+};
 
 const formatData = (rawData) => {
     let data = [];
@@ -248,7 +368,7 @@ const formatData = (rawData) => {
     let rollingRecoveryData = [0, 0, 0, 0, 0, 0, 0];
 
     for (const day of rawData) {
-        let date = new Date(day.date);
+        let date = parse(day.date, 'yyyy-MM-dd', new Date());
 
         data.push({
             date,
@@ -316,10 +436,6 @@ fetch(`${workerURL}/summary`)
                 changeKey: 'change_vaccinations'
             }
         ];
-
-        const formatNumber = (numberString) => {
-            return `${parseInt(numberString, 10).toLocaleString()}`;
-        }
 
         for (const summary of summaries) {
             const element = summaryElements.shift();
