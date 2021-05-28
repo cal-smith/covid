@@ -202,43 +202,86 @@ if (import.meta.env.MODE === 'development') {
     workerURL = import.meta.env.DEV_WORKER;
 }
 
-// get canada aggregate data
-fetch(workerURL)
-    .then(res => res.json())
-    .then(json => {
-        const data = formatData(json.data);
-        chart.model.setData(data);
-        updateTitle(json.last_updated);
-        updateRangeFromZoom(chart, [start, today]);
-        const table = generateTable(json.data);
-        tableElement.appendChild(table);
-    })
-    .catch(error => console.error(error));
+const renderCanadaData = (rawData) => {
+    const data = formatData(rawData.data);
+    chart.model.setData(data);
+    updateTitle(rawData.last_updated);
+    updateRangeFromZoom(chart, [start, today]);
+    const table = generateTable(rawData.data);
+    tableElement.appendChild(table);
+}
 
-for (const province of PROVINCES) {
+const renderProviceData = (province, rawData) => {
     province.chartElement = document.createElement('div');
     province.chartElement.classList.add('province-chart');
     provincesElement.appendChild(province.chartElement);
     const options = Object.assign({}, lineOptions, {
         title: `${province.name} change in cases over time`
     });
-    fetch(`${workerURL}?province=${province.code}`)
-        .then(res => res.json())
-        .then(json => {
-            province.rawData = json;
-            const data = formatData(json.data);
-            const chart = new LineChart(province.chartElement, {
-                data,
-                options
-            });
-            chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
-                updateRangeFromZoom(chart, event.detail.newDomain);
-            });
-            updateRangeFromZoom(chart, [start, today]);
-            province.chart = chart;
-        })
-        .catch(error => console.error(error));
+    province.rawData = rawData;
+    const data = formatData(rawData.data);
+    const chart = new LineChart(province.chartElement, {
+        data,
+        options
+    });
+    chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
+        updateRangeFromZoom(chart, event.detail.newDomain);
+    });
+    updateRangeFromZoom(chart, [start, today]);
+    province.chart = chart;
 }
+
+const renderSummary = (summaryData) => {
+    const summaryElements = Array.from(document.querySelectorAll('.summary .bx--tile'));
+        const summaries = [
+            {
+                title: 'Cases',
+                totalKey: 'total_cases',
+                changeKey: 'change_cases'
+            },
+            {
+                title: 'Recoveries',
+                totalKey: 'total_recoveries',
+                changeKey: 'change_recoveries'
+            },
+            {
+                title: 'Hospitalizations',
+                totalKey: 'total_hospitalizations',
+                changeKey: 'change_hospitalizations'
+            },
+            {
+                title: 'Vaccinations',
+                totalKey: 'total_vaccinations',
+                changeKey: 'change_vaccinations'
+            }
+        ];
+
+        for (const summary of summaries) {
+            const element = summaryElements.shift();
+            const total = formatNumber(summaryData[summary.totalKey]);
+            let change = formatNumber(summaryData[summary.changeKey]);
+            if (!change.startsWith('-')) {
+                change = `+${change}`;
+            }
+            element.innerHTML = `
+                <h1>${total}</h1>
+                <h3>${summary.title}</h3>
+                <span>${change} today</span>
+            `;
+        }
+}
+
+// get reports for everything, all at once
+fetch(`${workerURL}/all`)
+    .then(res => res.json())
+    .then(allReports => {
+        renderSummary(allReports.summary.data[0]);
+        renderCanadaData(allReports.can);
+        for (const province of PROVINCES) {
+            renderProviceData(province, allReports[province.code]);
+        }
+    })
+    .catch(error => console.error(error));
 
 const updateTitle = (updatedAt) => {
     const updatedDate = parse(`${updatedAt} -05`, 'yyyy-MM-dd HH:mm:ss x', new Date())
@@ -328,7 +371,7 @@ const generateTable = (rawData) => {
             textContent: `${daysAgo} (${monthDay})`
         });
 
-        const population = 37_590_000;
+        const population = 37_899_277; // https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710000901 Q1 2020
         const percentVaccinated = (day.total_vaccinations / population * 100).toFixed(2);
         const vaxCell = createElement('td', {
             classList: ['vaccinations'],
@@ -407,47 +450,3 @@ const formatData = (rawData) => {
 
     return data;
 };
-
-fetch(`${workerURL}/summary`)
-    .then(res => res.json())
-    .then(json => {
-        console.log(json);
-        const summaryElements = Array.from(document.querySelectorAll('.summary .bx--tile'));
-        const summaryData = json.data[0];
-        const summaries = [
-            {
-                title: 'Cases',
-                totalKey: 'total_cases',
-                changeKey: 'change_cases'
-            },
-            {
-                title: 'Recoveries',
-                totalKey: 'total_recoveries',
-                changeKey: 'change_recoveries'
-            },
-            {
-                title: 'Hospitalizations',
-                totalKey: 'total_hospitalizations',
-                changeKey: 'change_hospitalizations'
-            },
-            {
-                title: 'Vaccinations',
-                totalKey: 'total_vaccinations',
-                changeKey: 'change_vaccinations'
-            }
-        ];
-
-        for (const summary of summaries) {
-            const element = summaryElements.shift();
-            const total = formatNumber(summaryData[summary.totalKey]);
-            let change = formatNumber(summaryData[summary.changeKey]);
-            if (!change.startsWith('-')) {
-                change = `+${change}`;
-            }
-            element.innerHTML = `
-                <h1>${total}</h1>
-                <h3>${summary.title}</h3>
-                <span>${change} today</span>
-            `;
-        }
-    });
