@@ -63,7 +63,12 @@ const handleRequest = async (request) => {
 
   let jsonText = '';
   if (!province) {
-    if (pathname.includes('all')) {
+    if (pathname.includes('canada')) {
+      const canadaReport = {};
+      canadaReport.can = JSON.parse(await COVID_DATA.get('canada_report'));
+      canadaReport.summary = JSON.parse(await COVID_DATA.get('summary'));
+      jsonText = JSON.stringify(canadaReport);
+    } else if (pathname.includes('all')) {
       const allReport = {};
       allReport.can = JSON.parse(await COVID_DATA.get('canada_report'));
       allReport.summary = JSON.parse(await COVID_DATA.get('summary'));

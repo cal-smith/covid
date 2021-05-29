@@ -161,6 +161,52 @@ const getVisibleData = (data, domain) => {
     });
 };
 
+const formatData = (rawData) => {
+    let data = [];
+    let rollingCaseData = [0, 0, 0, 0, 0, 0, 0];
+    let rollingRecoveryData = [0, 0, 0, 0, 0, 0, 0];
+
+    for (const day of rawData) {
+        let date = parse(day.date, 'yyyy-MM-dd', new Date());
+
+        data.push({
+            date,
+            value: day.change_cases,
+            group: 'Cases'
+        });
+        data.push({
+            date,
+            value: day.change_recoveries,
+            group: 'Recoveries'
+        });
+        data.push({
+            date,
+            value: day.change_fatalities,
+            group: 'Deaths'
+        });
+
+        rollingCaseData.shift();
+        rollingCaseData.push(day.change_cases);
+        const rollingCaseSum = rollingCaseData.reduce((d, i) => d + i);
+        data.push({
+            date,
+            value: Math.round(rollingCaseSum / 7),
+            group: 'Cases (7 day average)'
+        });
+
+        rollingRecoveryData.shift();
+        rollingRecoveryData.push(day.change_recoveries);
+        const rollingRecoverySum = rollingRecoveryData.reduce((d, i) => d + i);
+        data.push({
+            date,
+            value: Math.round(rollingRecoverySum / 7),
+            group: 'Recoveries (7 day average)'
+        });
+    }
+
+    return data;
+};
+
 const updateRangeFromZoom = (chart, newDomain) => {
     const data = chart.model.getData();
     const filtered = getVisibleData(data, newDomain)
@@ -212,73 +258,94 @@ const renderCanadaData = (rawData) => {
 }
 
 const renderProviceData = (province, rawData) => {
-    province.chartElement = document.createElement('div');
-    province.chartElement.classList.add('province-chart');
-    provincesElement.appendChild(province.chartElement);
-    const options = Object.assign({}, lineOptions, {
-        title: `${province.name} change in cases over time`
-    });
+    if (!province.chart) {
+        province.chartElement = document.createElement('div');
+        province.chartElement.classList.add('province-chart');
+        provincesElement.appendChild(province.chartElement);
+        const options = Object.assign({}, lineOptions, {
+            title: `${province.name} change in cases over time`
+        });
+        const chart = new LineChart(province.chartElement, {
+            data: [],
+            options
+        });
+        chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
+            updateRangeFromZoom(chart, event.detail.newDomain);
+        });
+        province.chart = chart;
+    }
     province.rawData = rawData;
     const data = formatData(rawData.data);
-    const chart = new LineChart(province.chartElement, {
-        data,
-        options
-    });
-    chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
-        updateRangeFromZoom(chart, event.detail.newDomain);
-    });
-    updateRangeFromZoom(chart, [start, today]);
-    province.chart = chart;
+    province.chart.model.setData(data);
+    updateRangeFromZoom(province.chart, [start, today]);   
 }
 
 const renderSummary = (summaryData) => {
     const summaryElements = Array.from(document.querySelectorAll('.summary .bx--tile'));
-        const summaries = [
-            {
-                title: 'Cases',
-                totalKey: 'total_cases',
-                changeKey: 'change_cases'
-            },
-            {
-                title: 'Recoveries',
-                totalKey: 'total_recoveries',
-                changeKey: 'change_recoveries'
-            },
-            {
-                title: 'Hospitalizations',
-                totalKey: 'total_hospitalizations',
-                changeKey: 'change_hospitalizations'
-            },
-            {
-                title: 'Vaccinations',
-                totalKey: 'total_vaccinations',
-                changeKey: 'change_vaccinations'
-            }
-        ];
-
-        for (const summary of summaries) {
-            const element = summaryElements.shift();
-            const total = formatNumber(summaryData[summary.totalKey]);
-            let change = formatNumber(summaryData[summary.changeKey]);
-            if (!change.startsWith('-')) {
-                change = `+${change}`;
-            }
-            element.innerHTML = `
-                <h1>${total}</h1>
-                <h3>${summary.title}</h3>
-                <span>${change} today</span>
-            `;
+    const summaries = [
+        {
+            title: 'Cases',
+            totalKey: 'total_cases',
+            changeKey: 'change_cases'
+        },
+        {
+            title: 'Recoveries',
+            totalKey: 'total_recoveries',
+            changeKey: 'change_recoveries'
+        },
+        {
+            title: 'Hospitalizations',
+            totalKey: 'total_hospitalizations',
+            changeKey: 'change_hospitalizations'
+        },
+        {
+            title: 'Vaccinations',
+            totalKey: 'total_vaccinations',
+            changeKey: 'change_vaccinations'
         }
+    ];
+
+    for (const summary of summaries) {
+        const element = summaryElements.shift();
+        const total = formatNumber(summaryData[summary.totalKey]);
+        let change = formatNumber(summaryData[summary.changeKey]);
+        if (!change.startsWith('-')) {
+            change = `+${change}`;
+        }
+        element.innerHTML = `
+            <h1>${total}</h1>
+            <h3>${summary.title}</h3>
+            <span>${change} today</span>
+        `;
+    }
+}
+
+const apiEndpoint = (path = '') => {
+    const parsedPath = path.split('/').filter(part => part !== '').join('/');
+    let parsedWorkerURL = workerURL;
+    if (workerURL.endsWith('/')) {
+        parsedWorkerURL = workerURL.substring(0, workerURL.length - 1);
+    }
+    return `${parsedWorkerURL}/${parsedPath}`;
+};
+
+for (const province of PROVINCES) {
+    renderProviceData(province, { data: [] });
 }
 
 // get reports for everything, all at once
-fetch(`${workerURL}/all`)
+fetch(apiEndpoint('canada'))
     .then(res => res.json())
     .then(allReports => {
         renderSummary(allReports.summary.data[0]);
         renderCanadaData(allReports.can);
         for (const province of PROVINCES) {
-            renderProviceData(province, allReports[province.code]);
+            fetch(apiEndpoint(`?province=${province.code}`))
+            .then(res => res.json())
+            .then(provinceReport => {
+                renderProviceData(province, provinceReport);
+            })
+            .catch(error => console.error(error));
         }
     })
     .catch(error => console.error(error));
@@ -403,50 +470,4 @@ const generateTable = (rawData) => {
         children: [thead, tbody]
     });
     return table;
-};
-
-const formatData = (rawData) => {
-    let data = [];
-    let rollingCaseData = [0, 0, 0, 0, 0, 0, 0];
-    let rollingRecoveryData = [0, 0, 0, 0, 0, 0, 0];
-
-    for (const day of rawData) {
-        let date = parse(day.date, 'yyyy-MM-dd', new Date());
-
-        data.push({
-            date,
-            value: day.change_cases,
-            group: 'Cases'
-        });
-        data.push({
-            date,
-            value: day.change_recoveries,
-            group: 'Recoveries'
-        });
-        data.push({
-            date,
-            value: day.change_fatalities,
-            group: 'Deaths'
-        });
-
-        rollingCaseData.shift();
-        rollingCaseData.push(day.change_cases);
-        const rollingCaseSum = rollingCaseData.reduce((d, i) => d + i);
-        data.push({
-            date,
-            value: Math.round(rollingCaseSum / 7),
-            group: 'Cases (7 day average)'
-        });
-
-        rollingRecoveryData.shift();
-        rollingRecoveryData.push(day.change_recoveries);
-        const rollingRecoverySum = rollingRecoveryData.reduce((d, i) => d + i);
-        data.push({
-            date,
-            value: Math.round(rollingRecoverySum / 7),
-            group: 'Recoveries (7 day average)'
-        });
-    }
-
-    return data;
 };
