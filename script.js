@@ -2,7 +2,7 @@ import { LineChart } from '@carbon/charts';
 import { Legend, ZoomBar } from '@carbon/charts/interfaces/events';
 import { subDays, format, parse, isAfter, isBefore, formatDistance } from 'date-fns'
 
-// global elements
+/* global elements */
 const chartElement = document.querySelector('#chart');
 const tableElement = document.querySelector('#table');
 const pageTitle = document.querySelector('#title');
@@ -18,6 +18,12 @@ candaChartToggle.addEventListener('click', () => {
         candaChartToggle.textContent = 'Table';
     }
 });
+
+/* global values */
+let workerURL = import.meta.env.PROD_WORKER;
+if (import.meta.env.MODE === 'development') {
+    workerURL = import.meta.env.DEV_WORKER;
+}
 
 // provinces, raw data, and the associated chart instance
 const PROVINCES = [
@@ -142,7 +148,7 @@ const lineOptions = {
     }
 };
 
-const chart = new LineChart(chartElement, {
+const canadaChart = new LineChart(chartElement, {
     data: [],
     options: lineOptions
 });
@@ -207,21 +213,12 @@ const formatData = (rawData) => {
     return data;
 };
 
-const updateRangeFromZoom = (chart, newDomain) => {
-    const data = chart.model.getData();
-    const filtered = getVisibleData(data, newDomain)
-    const max = getMaxValue(filtered);
-    chart.model.setOptions({
-        axes: {
-            left: {
-                domain: [0, max]
-            }
-        }
-    });
-};
-
-const updateRangeFromLegend = (chart, legendItems) => {
-    const domain = chart.services.zoom.model.state.zoomDomain;
+const updateRange = (chart, newDomain) => {
+    let domain = chart.services.zoom.model.state.zoomDomain;
+    if (newDomain) {
+        domain = newDomain;
+    }
+    const legendItems = chart.model.state.dataGroups;
     const names = legendItems.filter(item => item.status === 1).map(item => item.name);
     const data = chart.model.getData();
     const filtered = getVisibleData(data, domain).filter(data => names.includes(data.group));
@@ -235,24 +232,19 @@ const updateRangeFromLegend = (chart, legendItems) => {
     });
 };
 
-chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
-    updateRangeFromZoom(chart, event.detail.newDomain);
+canadaChart.services.events.addEventListener(ZoomBar.SELECTION_END, () => {
+    updateRange(canadaChart);
 });
 
-chart.services.events.addEventListener(Legend.ITEMS_UPDATE, event => {
-    updateRangeFromLegend(chart, event.detail.dataGroups)
+canadaChart.services.events.addEventListener(Legend.ITEMS_UPDATE, () => {
+    updateRange(canadaChart);
 });
-
-let workerURL = import.meta.env.PROD_WORKER;
-if (import.meta.env.MODE === 'development') {
-    workerURL = import.meta.env.DEV_WORKER;
-}
 
 const renderCanadaData = (rawData) => {
     const data = formatData(rawData.data);
-    chart.model.setData(data);
+    canadaChart.model.setData(data);
     updateTitle(rawData.last_updated);
-    updateRangeFromZoom(chart, [start, today]);
+    updateRange(canadaChart, [start, today]);
     const table = generateTable(rawData.data);
     tableElement.appendChild(table);
 }
@@ -269,15 +261,18 @@ const renderProviceData = (province, rawData) => {
             data: [],
             options
         });
-        chart.services.events.addEventListener(ZoomBar.SELECTION_END, event => {
-            updateRangeFromZoom(chart, event.detail.newDomain);
+        chart.services.events.addEventListener(ZoomBar.SELECTION_END, () => {
+            updateRange(chart);
+        });
+        chart.services.events.addEventListener(Legend.ITEMS_UPDATE, () => {
+            updateRange(chart)
         });
         province.chart = chart;
     }
     province.rawData = rawData;
     const data = formatData(rawData.data);
     province.chart.model.setData(data);
-    updateRangeFromZoom(province.chart, [start, today]);   
+    updateRange(province.chart, [start, today]);   
 }
 
 const renderSummary = (summaryData) => {
@@ -333,13 +328,15 @@ for (const province of PROVINCES) {
     renderProviceData(province, { data: [] });
 }
 
-// get reports for everything, all at once
-fetch(apiEndpoint('canada'))
-    .then(res => res.json())
-    .then(allReports => {
-        renderSummary(allReports.summary.data[0]);
-        renderCanadaData(allReports.can);
+const displayReports = async () => {
+    try {
+        // first get the canada report
+        const canadaReport = await fetch(apiEndpoint('canada')).then(res => res.json());
+        renderSummary(canadaReport.summary.data[0]);
+        renderCanadaData(canadaReport.can);
+        // then get the reports for each province
         for (const province of PROVINCES) {
+            // fire off all of these fully async, we don't actually want to block with an `await` here
             fetch(apiEndpoint(`?province=${province.code}`))
             .then(res => res.json())
             .then(provinceReport => {
@@ -347,8 +344,20 @@ fetch(apiEndpoint('canada'))
             })
             .catch(error => console.error(error));
         }
-    })
-    .catch(error => console.error(error));
+
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+// do an initial render
+displayReports();
+
+// update every 10ish minutes
+setInterval(() => {
+    console.log("waited 10mins, updating...");
+    displayReports();
+}, 10 * 60 * 1000);
 
 const updateTitle = (updatedAt) => {
     const updatedDate = parse(`${updatedAt} -05`, 'yyyy-MM-dd HH:mm:ss x', new Date())
